@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+    background-color: transparent;
+}
+
+body {
+    background: transparent;
+    overflow: hidden;
+    /* Make the whole window draggable by default */
+    -webkit-app-region: drag;
+}
+
+/* 
+   Disable drag on interactive elements automatically.
+   This prevents buttons/inputs from being "dragging handles".
+*/
+button,
+input,
+select,
+textarea,
+a,
+.no-drag {
+    -webkit-app-region: no-drag;
+}
+
+/* Custom Scrollbar if needed */
+::-webkit-scrollbar {
+    width: 0px;
+    background: transparent;
+}
