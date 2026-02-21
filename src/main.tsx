@@ -4,10 +4,10 @@ import App from './App.tsx'
 import NotificationApp from './NotificationApp.tsx'
 import './index.css'
 
-const route = window.location.hash;
+const isNotification = window.location.hash.includes('notification') || window.location.search.includes('notification');
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
-        {route === '#/notification' ? <NotificationApp /> : <App />}
+        {isNotification ? <NotificationApp /> : <App />}
     </React.StrictMode>,
 )

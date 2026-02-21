@@ -197,7 +197,7 @@ export const getAllRules = () => PRODUCTIVITY_RULES;
 // elapsedSeconds: the time elapsed on the stopwatch since start
 // configuredRules: mapping of ruleId -> { isEnabled: boolean, intervalIndex: number }
 export function checkAlerts(elapsedSeconds: number, configuredRules?: Record<string, { isEnabled: boolean, intervalIndex: number }>): Alert[] {
-    return PRODUCTIVITY_RULES.filter(rule => {
+    const activeAlerts = PRODUCTIVITY_RULES.filter(rule => {
         // Find if this rule is enabled
         const config = configuredRules?.[rule.id];
 
@@ -211,7 +211,13 @@ export function checkAlerts(elapsedSeconds: number, configuredRules?: Record<str
         // Make sure it doesn't try to access out of bounds
         const activeInterval = rule.intervals[targetIntervalIndex] || rule.intervals[rule.defaultIntervalIndex];
 
+
+
         // Trigger when the elapsed time hits a multiple of the requested interval value
         return elapsedSeconds > 0 && (elapsedSeconds % activeInterval.value === 0);
     });
+
+
+
+    return activeAlerts;
 }

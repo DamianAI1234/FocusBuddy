@@ -40,8 +40,10 @@ export function useTimer() {
                         // Trigger custom system notification
                         newAlerts.forEach(alert => {
                             ipcRenderer.send('show-custom-notification', {
-                                title: alert.type.toUpperCase(),
-                                message: alert.message
+                                title: alert.message,
+                                message: alert.description,
+                                type: 'reminder',
+                                ruleId: alert.id
                             });
                         });
                     }
@@ -55,8 +57,9 @@ export function useTimer() {
                         if (prev <= 1) {
                             setIsRunning(false);
                             ipcRenderer.send('show-custom-notification', {
-                                title: "Timer Finished! 🏆",
-                                message: "Great focus session!"
+                                title: "Focus Timer Complete",
+                                message: "Great focus session! Take a well-deserved break.",
+                                type: 'timer'
                             });
                             return 0;
                         }

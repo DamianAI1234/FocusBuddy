@@ -1,7 +1,9 @@
 {
-    "name": "desktop-buddy",
+    "name": "focus-buddy",
     "private": true,
-    "version": "0.0.0",
+    "version": "1.0.0",
+    "description": "The ultimate desktop companion to keep you productive, hydrated, and healthy.",
+    "author": "DamianAI1234",
     "main": "electron/main.js",
     "scripts": {
         "dev": "vite",
@@ -9,8 +11,8 @@
         "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
         "preview": "vite preview",
         "electron": "wait-on tcp:5173 && cross-env NODE_ENV=development electron .",
-        "electron:pack:win": "electron-builder --win -c.extraMetadata.main=dist/electron/main.js",
-        "electron:pack:mac": "electron-builder --mac -c.extraMetadata.main=dist/electron/main.js",
+        "electron:pack:win": "electron-builder --win -c.extraMetadata.main=electron/main.js",
+        "electron:pack:mac": "electron-builder --mac -c.extraMetadata.main=electron/main.js",
         "start": "concurrently -k \"npm run dev\" \"npm run electron\""
     },
     "build": {

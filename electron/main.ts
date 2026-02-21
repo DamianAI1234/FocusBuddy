@@ -29,8 +29,8 @@ const createWindow = () => {
     });
 
     // Load the index.html of the app.
-    if (process.env.VITE_DEV_SERVER_URL) {
-        mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
+    if (process.env.NODE_ENV === 'development') {
+        mainWindow.loadURL('http://localhost:5173/');
     } else {
         mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
     }
@@ -72,14 +72,14 @@ ipcMain.on('close-app', () => {
     mainWindow?.close();
 });
 
-ipcMain.on('show-custom-notification', (event, { title, message }) => {
+ipcMain.on('show-custom-notification', (event, { title, message, type, ruleId }) => {
     const { width, height } = screen.getPrimaryDisplay().workAreaSize;
 
     if (!notificationWindow) {
         notificationWindow = new BrowserWindow({
-            width: 320,
-            height: 100,
-            x: width - 340,
+            width: 380,
+            height: 120,
+            x: width - 400,
             y: 40, // Top right corner
             webPreferences: {
                 preload: path.join(__dirname, 'preload.js'),
@@ -88,6 +88,8 @@ ipcMain.on('show-custom-notification', (event, { title, message }) => {
             },
             frame: false,
             transparent: true,
+            backgroundColor: '#00000000',
+            hasShadow: false,
             alwaysOnTop: true,
             resizable: false,
             skipTaskbar: true,
@@ -95,8 +97,8 @@ ipcMain.on('show-custom-notification', (event, { title, message }) => {
             show: false,
         });
 
-        if (process.env.VITE_DEV_SERVER_URL) {
-            notificationWindow.loadURL(`${process.env.VITE_DEV_SERVER_URL}#/notification`);
+        if (process.env.NODE_ENV === 'development') {
+            notificationWindow.loadURL(`http://localhost:5173/#/notification`);
         } else {
             notificationWindow.loadFile(path.join(__dirname, '../dist/index.html'), { hash: 'notification' });
         }
@@ -104,6 +106,9 @@ ipcMain.on('show-custom-notification', (event, { title, message }) => {
         notificationWindow.on('closed', () => {
             notificationWindow = null;
         });
+
+        // Force strictly always-on-top even over full-screen games and bypass OS DND
+        notificationWindow.setAlwaysOnTop(true, 'screen-saver');
     }
 
     // Clear any existing timeout
@@ -113,7 +118,7 @@ ipcMain.on('show-custom-notification', (event, { title, message }) => {
 
     notificationWindow.once('ready-to-show', () => {
         notificationWindow?.showInactive();
-        notificationWindow?.webContents.send('show-notification-data', { title, message });
+        notificationWindow?.webContents.send('show-notification-data', { title, message, type, ruleId });
 
         // Auto close after 15 seconds
         notificationTimeout = setTimeout(() => {
@@ -126,13 +131,23 @@ ipcMain.on('show-custom-notification', (event, { title, message }) => {
     // If it's already created and just hidden/shown
     if (notificationWindow.isVisible() || notificationWindow.webContents.isLoading() === false) {
         notificationWindow.showInactive();
-        notificationWindow.webContents.send('show-notification-data', { title, message });
+        notificationWindow.webContents.send('show-notification-data', { title, message, type, ruleId });
 
         notificationTimeout = setTimeout(() => {
             if (notificationWindow) {
                 notificationWindow.close();
             }
         }, 15000);
+    }
+});
+
+// Route notification clicks to open the Reminders pane in the main app
+ipcMain.on('open-reminders-view', (event, ruleId) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('open-reminders-view', ruleId);
+        // Bring the main window to the front if it was hidden behind other apps
+        if (mainWindow.isMinimized()) mainWindow.restore();
+        mainWindow.show();
     }
 });
 

@@ -4,7 +4,7 @@ import { Controls } from './components/Controls';
 import { useTimer } from './hooks/useTimer';
 import { Alert, getAllRules } from './core/ProductivityEngine';
 import { Onboarding } from './components/Onboarding';
-import { X, Minimize2, Power, Settings as SettingsIcon, Check, Moon, MoonStar, ListTodo } from 'lucide-react';
+import { X, Minimize2, Power, Settings as SettingsIcon, Check, Moon, MoonStar, ListTodo, Zap } from 'lucide-react';
 import { useTheme, THEMES, ThemeColor } from './hooks/useTheme';
 
 // IPC for Electron window controls
@@ -24,6 +24,7 @@ function App() {
     const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem('focus-buddy-onboarded'));
     const [isEditingDuration, setIsEditingDuration] = useState(false);
     const [customDurationInput, setCustomDurationInput] = useState('');
+    const [highlightedRuleId, setHighlightedRuleId] = useState<string | null>(null);
     const allRules = getAllRules();
 
     const { themeName, theme, setTheme, bgName, setBg, ui } = useTheme();
@@ -41,6 +42,58 @@ function App() {
         }
         return () => { };
     }, [isRunning, dndEnabled]);
+
+    // Robust hook that automatically scrolls to a highlighted rule whenever it's set
+    // AND the reminders view is fully mounted onto the DOM.
+    useEffect(() => {
+        if (!showReminders || !highlightedRuleId) return;
+
+        let attempts = 0;
+        const intervalId = setInterval(() => {
+            const container = document.getElementById('reminders-scroll-container');
+            const el = document.getElementById(`rule-${highlightedRuleId}`);
+
+            if (container && el) {
+                // Ensure layout has happened
+                if (el.offsetTop > 0 || highlightedRuleId === allRules[0]?.id) {
+                    // Mathematically scroll the container relative to its own space,
+                    // immune to CSS slide-in transform visual bugs.
+                    container.scrollTo({
+                        top: el.offsetTop - 100, // Offset a bit so it's not hugging the top edge
+                        behavior: 'smooth'
+                    });
+                    clearInterval(intervalId);
+                }
+            }
+
+            if (attempts > 15) {
+                clearInterval(intervalId); // Give up if it never mounts (~1.5s)
+            }
+            attempts++;
+        }, 50);
+
+        // Clear the highlight styling after a few seconds
+        const clearTimer = setTimeout(() => setHighlightedRuleId(null), 3000);
+
+        return () => {
+            clearInterval(intervalId);
+            clearTimeout(clearTimer);
+        };
+    }, [showReminders, highlightedRuleId]);
+
+    // Handle clicks from the external Notification Window
+    useEffect(() => {
+        const handleOpenReminders = (_e: any, ruleId?: string) => {
+            if (ruleId) {
+                setHighlightedRuleId(ruleId);
+                setShowReminders(true);
+            }
+        };
+        ipcRenderer.on('open-reminders-view', handleOpenReminders);
+        return () => {
+            ipcRenderer.off('open-reminders-view', handleOpenReminders);
+        };
+    }, []);
 
     const handlePresetChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const val = e.target.value;
@@ -99,7 +152,7 @@ function App() {
                 <button onClick={() => setShowReminders(false)} className={`${ui.inputBg} ${ui.modalBgHover} p-1.5 rounded-full transition-colors ${ui.text}`}><X size={16} /></button>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 scrollbar-hide pb-24">
+            <div id="reminders-scroll-container" className="flex-1 overflow-y-auto px-4 py-4 space-y-4 scrollbar-hide pb-24 relative">
                 <div className="flex justify-between items-center mb-2">
                     <h3 className="text-xs font-bold text-white/50 uppercase tracking-widest">Active Reminders</h3>
                     <span className="text-[10px] text-white/30">{Object.values(enabledRules).filter(r => (r as any).isEnabled).length} Active</span>
@@ -114,8 +167,9 @@ function App() {
                         return (
                             <div
                                 key={rule.id}
+                                id={`rule-${rule.id}`}
                                 onClick={() => toggleRule(rule.id)}
-                                className={`relative p-3 rounded-xl border transition-all duration-300 cursor-pointer overflow-hidden ${isActive ? `border-transparent` : `bg-transparent ${ui.border} ${ui.cardHoverBg}`}`}
+                                className={`relative p-3 rounded-xl border transition-all duration-500 cursor-pointer overflow-hidden ${isActive ? `border-transparent` : `bg-transparent ${ui.border} ${ui.cardHoverBg}`} ${highlightedRuleId === rule.id ? `ring-2 ring-white shadow-[0_0_20px_rgba(255,255,255,0.4)] scale-[1.02] bg-white/10` : ''}`}
                             >
                                 {/* Glowing Background Effect for Active State */}
                                 {isActive && (
@@ -340,9 +394,40 @@ function App() {
             {/* Alerts Overlay / Toast */}
             <div className="absolute bottom-4 left-0 right-0 px-4 flex flex-col gap-2 pointer-events-none z-30">
                 {alerts.map((alert: Alert) => (
-                    <div key={alert.id} className={`pointer-events-auto ${ui.modal} backdrop-blur-md border ${ui.border} p-3 rounded-xl shadow-xl animate-in slide-in-from-bottom flex justify-between items-center text-left ${ui.text}`}>
-                        <div className="text-sm font-medium">{alert.message}</div>
-                        <button onClick={() => clearAlert(alert.id)} className={`ml-2 ${ui.textMuted} ${ui.headerIconHover} transition-colors`}><X size={16} /></button>
+                    <div
+                        key={alert.id}
+                        onClick={() => {
+                            clearAlert(alert.id);
+                            setHighlightedRuleId(alert.id);
+                            setShowReminders(true);
+                        }}
+                        className={`pointer-events-auto no-drag rounded-xl border border-white/10 bg-black/60 shadow-2xl backdrop-blur-2xl overflow-hidden cursor-pointer hover:bg-black/70 transition-all animate-in slide-in-from-bottom flex items-center p-2.5 gap-3 group`}
+                    >
+                        {/* App / Category Icon */}
+                        <div style={{ backgroundColor: theme.hex }} className="w-8 h-8 flex items-center justify-center rounded-lg flex-shrink-0 shadow-inner">
+                            <Zap size={14} className="text-white drop-shadow-md" />
+                        </div>
+
+                        {/* Text Content */}
+                        <div className="flex-1 min-w-0 pr-2">
+                            <div className="flex items-center justify-between mb-0.5">
+                                <span className="text-[9px] font-bold uppercase tracking-widest text-white/50">
+                                    Activity
+                                </span>
+                            </div>
+                            <h4 className="text-xs font-semibold text-white truncate drop-shadow-sm">{alert.message}</h4>
+                        </div>
+
+                        {/* Close Button */}
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                clearAlert(alert.id);
+                            }}
+                            className={`p-1.5 rounded-full bg-white/5 hover:bg-white/20 text-white/40 hover:text-white transition-colors cursor-default`}
+                        >
+                            <X size={12} strokeWidth={2.5} />
+                        </button>
                     </div>
                 ))}
             </div>
