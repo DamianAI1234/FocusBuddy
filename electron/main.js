@@ -31,6 +31,7 @@ var notificationTimeout = null;
 var createWindow = () => {
   const { width, height } = import_electron.screen.getPrimaryDisplay().workAreaSize;
   mainWindow = new import_electron.BrowserWindow({
+    icon: import_path.default.join(__dirname, "../public/icon.png"),
     width: 300,
     height: 450,
     x: width - 320,
@@ -83,6 +84,7 @@ import_electron.ipcMain.on("show-custom-notification", (event, { title, message,
   const { width, height } = import_electron.screen.getPrimaryDisplay().workAreaSize;
   if (!notificationWindow) {
     notificationWindow = new import_electron.BrowserWindow({
+      icon: import_path.default.join(__dirname, "../public/icon.png"),
       width: 380,
       height: 120,
       x: width - 400,

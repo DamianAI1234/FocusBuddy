@@ -196,7 +196,7 @@ export const getAllRules = () => PRODUCTIVITY_RULES;
 // We'll update the signature to accept a record of configured intervals instead of just rules.
 // elapsedSeconds: the time elapsed on the stopwatch since start
 // configuredRules: mapping of ruleId -> { isEnabled: boolean, intervalIndex: number }
-export function checkAlerts(elapsedSeconds: number, configuredRules?: Record<string, { isEnabled: boolean, intervalIndex: number }>): Alert[] {
+export function checkAlerts(previousSeconds: number, currentSeconds: number, configuredRules?: Record<string, { isEnabled: boolean, intervalIndex: number }>): Alert[] {
     const activeAlerts = PRODUCTIVITY_RULES.filter(rule => {
         // Find if this rule is enabled
         const config = configuredRules?.[rule.id];
@@ -211,13 +211,12 @@ export function checkAlerts(elapsedSeconds: number, configuredRules?: Record<str
         // Make sure it doesn't try to access out of bounds
         const activeInterval = rule.intervals[targetIntervalIndex] || rule.intervals[rule.defaultIntervalIndex];
 
+        // Check if an interval boundary was crossed between previousSeconds and currentSeconds
+        const previousMultiples = Math.floor(previousSeconds / activeInterval.value);
+        const currentMultiples = Math.floor(currentSeconds / activeInterval.value);
 
-
-        // Trigger when the elapsed time hits a multiple of the requested interval value
-        return elapsedSeconds > 0 && (elapsedSeconds % activeInterval.value === 0);
+        return currentSeconds > 0 && currentMultiples > previousMultiples;
     });
-
-
 
     return activeAlerts;
 }

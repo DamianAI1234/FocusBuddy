@@ -26,45 +26,56 @@ export function useTimer() {
     });
 
     const timerRef = useRef<NodeJS.Timeout | null>(null);
+    const lastTick = useRef<number>(Date.now());
 
     useEffect(() => {
         if (isRunning) {
+            lastTick.current = Date.now();
             timerRef.current = setInterval(() => {
-                // Update session time for alerts regardless of mode
-                setSessionTime(prev => {
-                    const newSessionTime = prev + 1;
-                    // Pass enabledRules to checkAlerts
-                    const newAlerts = checkAlerts(newSessionTime, enabledRules);
-                    if (newAlerts.length > 0) {
-                        setAlerts(cur => [...cur, ...newAlerts]);
-                        // Trigger custom system notification
-                        newAlerts.forEach(alert => {
-                            ipcRenderer.send('show-custom-notification', {
-                                title: alert.message,
-                                message: alert.description,
-                                type: 'reminder',
-                                ruleId: alert.id
+                const now = Date.now();
+                const deltaMs = now - lastTick.current;
+                const deltaSeconds = Math.round(deltaMs / 1000);
+
+                if (deltaSeconds >= 1) {
+                    // Advance lastTick by exactly the seconds we're processing to avoid drift
+                    lastTick.current += deltaSeconds * 1000;
+
+                    // Update session time for alerts regardless of mode
+                    setSessionTime(prev => {
+                        const newSessionTime = prev + deltaSeconds;
+                        // Pass enabledRules to checkAlerts
+                        const newAlerts = checkAlerts(prev, newSessionTime, enabledRules);
+                        if (newAlerts.length > 0) {
+                            setAlerts(cur => [...cur, ...newAlerts]);
+                            // Trigger custom system notification
+                            newAlerts.forEach(alert => {
+                                ipcRenderer.send('show-custom-notification', {
+                                    title: alert.message,
+                                    message: alert.description,
+                                    type: 'reminder',
+                                    ruleId: alert.id
+                                });
                             });
+                        }
+                        return newSessionTime;
+                    });
+
+                    if (mode === 'stopwatch') {
+                        setElapsed(prev => prev + deltaSeconds);
+                    } else {
+                        setTimeLeft(prev => {
+                            if (prev <= deltaSeconds) {
+                                setIsRunning(false);
+                                ipcRenderer.send('show-custom-notification', {
+                                    title: "Focus Timer Complete",
+                                    message: "Great focus session! Take a well-deserved break.",
+                                    type: 'timer'
+                                });
+                                return 0;
+                            }
+                            return prev - deltaSeconds;
                         });
                     }
-                    return newSessionTime;
-                });
-
-                if (mode === 'stopwatch') {
-                    setElapsed(prev => prev + 1);
-                } else {
-                    setTimeLeft(prev => {
-                        if (prev <= 1) {
-                            setIsRunning(false);
-                            ipcRenderer.send('show-custom-notification', {
-                                title: "Focus Timer Complete",
-                                message: "Great focus session! Take a well-deserved break.",
-                                type: 'timer'
-                            });
-                            return 0;
-                        }
-                        return prev - 1;
-                    });
                 }
             }, 1000);
         } else {
@@ -73,7 +84,7 @@ export function useTimer() {
         return () => {
             if (timerRef.current) clearInterval(timerRef.current);
         };
-    }, [isRunning, mode]);
+    }, [isRunning, mode, enabledRules]);
 
     const start = () => setIsRunning(true);
     const pause = () => setIsRunning(false);

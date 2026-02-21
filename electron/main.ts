@@ -12,6 +12,7 @@ const createWindow = () => {
     const { width, height } = screen.getPrimaryDisplay().workAreaSize;
 
     mainWindow = new BrowserWindow({
+        icon: path.join(__dirname, '../public/icon.png'),
         width: 300,
         height: 450,
         x: width - 320,
@@ -20,6 +21,7 @@ const createWindow = () => {
             preload: path.join(__dirname, 'preload.js'),
             nodeIntegration: true,
             contextIsolation: false, // For simple prototype, can be secured later
+            backgroundThrottling: false, // Ensures timer intervals don't get paused when minimized
         },
         frame: false, // Widget style
         transparent: true,
@@ -77,6 +79,7 @@ ipcMain.on('show-custom-notification', (event, { title, message, type, ruleId })
 
     if (!notificationWindow) {
         notificationWindow = new BrowserWindow({
+            icon: path.join(__dirname, '../public/icon.png'),
             width: 380,
             height: 120,
             x: width - 400,
